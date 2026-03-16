@@ -93,27 +93,48 @@ export default function StreakScreen() {
           </View>
 
           {/* 35 day grid */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-            {Array.from({ length: 35 }).map((_, i) => {
-              const date = new Date()
-              date.setDate(date.getDate() - (34 - i))
-              const dateKey = date.getFullYear() + '-' + (date.getMonth() + 1) + '-' + date.getDate()
-              const isToday = i === 34
-              const isComplete = completedDates.includes(dateKey)
+          {(() => {
+            const today = new Date()
+            today.setHours(0, 0, 0, 0)
 
-              return (
-                <View key={i} style={{ width: '14.28%', aspectRatio: 1, padding: 2 }}>
-                  <View style={{
-                    flex: 1,
-                    borderRadius: 4,
-                    backgroundColor: isComplete ? '#111' : '#f0efea',
-                    borderWidth: isToday && !isComplete ? 1.5 : 0,
-                    borderColor: isToday && !isComplete ? '#999' : 'transparent',
-                  }} />
-                </View>
-              )
-            })}
-          </View>
+            const endDate = new Date(today)
+            const dayOfWeek = today.getDay()
+            const daysUntilSaturday = 6 - dayOfWeek
+            endDate.setDate(endDate.getDate() + daysUntilSaturday)
+
+            const startDate = new Date(endDate)
+            startDate.setDate(startDate.getDate() - 34)
+
+            const calendarDays = Array.from({ length: 35 }).map((_, i) => {
+              const d = new Date(startDate)
+              d.setDate(startDate.getDate() + i)
+              return d
+            })
+
+            return (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {calendarDays.map((d, i) => {
+                  const dateKey = d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate()
+                  const isComplete = completedDates.includes(dateKey)
+                  const isToday = d.getTime() === today.getTime()
+                  const isFuture = d > today
+
+                  return (
+                    <View key={i} style={{ width: '14.28%', aspectRatio: 1, padding: 2 }}>
+                      <View style={{
+                        flex: 1,
+                        borderRadius: 4,
+                        backgroundColor: isComplete ? '#111' : '#f0efea',
+                        borderWidth: isToday && !isComplete ? 1.5 : 0,
+                        borderColor: isToday && !isComplete ? '#999' : 'transparent',
+                        opacity: isFuture ? 0.3 : 1,
+                      }} />
+                    </View>
+                  )
+                })}
+              </View>
+            )
+          })()}
 
           {/* Legend */}
           <View style={{ flexDirection: 'row', gap: 16, marginTop: 12 }}>

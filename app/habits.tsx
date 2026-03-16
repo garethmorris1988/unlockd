@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { scheduleMorningReminder } from '../utils/notifications'
 
 type HabitId = 'meditation' | 'breathwork' | 'gratitude' | 'steps' | 'exercise'
 
@@ -144,7 +145,10 @@ export default function HabitsScreen() {
       </ScrollView>
 
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={async () => {
+          await scheduleMorningReminder(lockHour, lockMin)
+          router.back()
+        }}
         style={{
           marginHorizontal: 24,
           marginBottom: 24,

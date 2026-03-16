@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import Svg, { Circle } from 'react-native-svg'
+import { Svg, Circle } from 'react-native-svg'
+import AppleHealthKit from 'react-native-health'
 
 const STEP_GOAL = 2000
 const CIRCLE_SIZE = 220
@@ -11,9 +12,12 @@ const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export default function StepsScreen() {
-  const steps = 847
+  const [steps, setSteps] = useState(0)
+  const [healthStatus, setHealthStatus] = useState<'loading' | 'granted' | 'denied'>('loading')
+
   const progress = Math.min(steps / STEP_GOAL, 1)
   const strokeDashoffset = CIRCUMFERENCE * (1 - progress)
+
   async function handleComplete() {
     const today = new Date()
     const dateKey = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate()
@@ -25,8 +29,44 @@ export default function StepsScreen() {
   }
 
   useEffect(() => {
-    if (steps >= STEP_GOAL) {
-      handleComplete()
+    try {
+      const permissions = {
+        permissions: {
+          read: [AppleHealthKit.Constants.Permissions.StepCount],
+          write: [],
+        },
+      }
+
+      AppleHealthKit.initHealthKit(permissions, (error: string) => {
+        if (error) {
+          console.log('HealthKit init error:', error)
+          setHealthStatus('denied')
+          setSteps(0)
+          return
+        }
+        setHealthStatus('granted')
+
+        const today = new Date()
+        const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 0, 0, 0)
+
+        AppleHealthKit.getStepCount(
+          { date: startOfDay.toISOString() },
+          (err: string, results: any) => {
+            if (err) {
+              console.log('Step count error:', err)
+              setSteps(0)
+              return
+            }
+            if (results && results.value) {
+              setSteps(Math.round(results.value))
+            }
+          }
+        )
+      })
+    } catch (e) {
+      console.log('HealthKit exception:', e)
+      setHealthStatus('denied')
+      setSteps(0)
     }
   }, [])
 
@@ -76,10 +116,10 @@ export default function StepsScreen() {
               alignItems: 'center', justifyContent: 'center',
             }}>
               <Text style={{ fontSize: 44, fontWeight: '800', color: '#111', letterSpacing: -2 }}>
-                {steps.toLocaleString()}
+                {healthStatus === 'loading' ? '...' : healthStatus === 'denied' ? 'N/A' : steps.toLocaleString()}
               </Text>
               <Text style={{ fontSize: 10, color: '#bbb', letterSpacing: 2, textTransform: 'uppercase', marginTop: 4 }}>
-                STEPS TODAY
+                {healthStatus === 'denied' ? 'HEALTHKIT DENIED' : 'STEPS TODAY'}
               </Text>
             </View>
           </View>

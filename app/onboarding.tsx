@@ -7,8 +7,10 @@ import {
   StatusBar,
 } from 'react-native';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Purchases, { PurchasesPackage } from 'react-native-purchases';
+import { scheduleMorningReminder } from '../utils/notifications'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -105,6 +107,9 @@ export default function OnboardingScreen() {
   const [lockHour, setLockHour] = useState(6);
   const [lockMin, setLockMin]   = useState(30);
   const [selectedPlan, setSelectedPlan] = useState<'annual' | 'monthly'>('annual');
+  const [packages, setPackages] = useState<PurchasesPackage[]>([])
+  const [isPurchasing, setIsPurchasing] = useState(false)
+  const [purchaseError, setPurchaseError] = useState('')
 
   function selectGoal(id: GoalId) {
     setGoal(id);
@@ -135,6 +140,56 @@ export default function OnboardingScreen() {
       AsyncStorage.setItem('unlockd_onboarding_done', 'true'),
     ]);
     router.replace('/motivation');
+  }
+
+  useEffect(() => {
+    async function loadOfferings() {
+      try {
+        const offerings = await Purchases.getOfferings()
+        if (offerings.current?.availablePackages) {
+          setPackages(offerings.current.availablePackages)
+        }
+      } catch (e) {
+        console.log('RevenueCat error:', e)
+      }
+    }
+    loadOfferings()
+  }, [])
+
+  async function handleStartTrial() {
+    setIsPurchasing(true)
+    setPurchaseError('')
+    try {
+      const selectedPackage = packages.find(p =>
+        selectedPlan === 'annual'
+          ? p.identifier === '$rc_annual'
+          : p.identifier === '$rc_monthly'
+      )
+      if (selectedPackage) {
+        await Purchases.purchasePackage(selectedPackage)
+      }
+      await AsyncStorage.setItem('unlockd_onboarding_done', 'true')
+      router.replace('/')
+    } catch (e: any) {
+      if (!e.userCancelled) {
+        setPurchaseError('Something went wrong. Please try again.')
+      }
+      setIsPurchasing(false)
+    }
+  }
+
+  async function handleRestore() {
+    try {
+      const restore = await Purchases.restorePurchases()
+      if (Object.keys(restore.entitlements.active).length > 0) {
+        await AsyncStorage.setItem('unlockd_onboarding_done', 'true')
+        router.replace('/')
+      } else {
+        setPurchaseError('No active subscriptions found.')
+      }
+    } catch (e) {
+      setPurchaseError('Restore failed. Please try again.')
+    }
   }
 
   const showProgress = step >= FIRST_PROGRESS_STEP && step <= LAST_PROGRESS_STEP;
@@ -342,7 +397,11 @@ export default function OnboardingScreen() {
             <Text style={styles.lockNote}>
               Phone locks every morning at {padH}:{padM}
             </Text>
-            <TouchableOpacity style={styles.ctaDark} onPress={() => setStep(7)}>
+            <TouchableOpacity style={styles.ctaDark} onPress={async () => {
+              await AsyncStorage.setItem('unlockd_lock_time', JSON.stringify({ hour: lockHour, min: lockMin }))
+              await scheduleMorningReminder(lockHour, lockMin)
+              setStep(7)
+            }}>
               <Text style={styles.ctaDarkText}>Set My Lock Time →</Text>
             </TouchableOpacity>
           </View>
@@ -398,13 +457,18 @@ export default function OnboardingScreen() {
             </View>
 
             {/* CTA */}
-            <TouchableOpacity style={styles.ctaDark} onPress={finish}>
-              <Text style={styles.ctaDarkText}>Start 7-Day Free Trial</Text>
+            <TouchableOpacity style={[styles.ctaDark, { opacity: isPurchasing ? 0.6 : 1 }]} onPress={handleStartTrial}>
+              <Text style={styles.ctaDarkText}>{isPurchasing ? 'Loading...' : 'Start 7-Day Free Trial'}</Text>
             </TouchableOpacity>
             <Text style={styles.paywallNote}>{selectedPlan === 'annual' ? 'Then £35.99/year · Cancel anytime' : 'Then £4.99/month · Cancel anytime'}</Text>
-            <TouchableOpacity onPress={finish}>
+            <TouchableOpacity onPress={handleRestore}>
               <Text style={styles.restoreText}>Restore purchases</Text>
             </TouchableOpacity>
+            {purchaseError.length > 0 && (
+              <Text style={{ fontSize: 11, color: '#ff4444', textAlign: 'center', marginTop: 8 }}>
+                {purchaseError}
+              </Text>
+            )}
           </View>
         )}
 

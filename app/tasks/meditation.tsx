@@ -15,6 +15,8 @@ export default function MeditationScreen() {
   const [secondsLeft, setSecondsLeft] = useState(TOTAL_SECONDS)
   const [isRunning, setIsRunning] = useState(false)
   const [isComplete, setIsComplete] = useState(false)
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  const [countdown, setCountdown] = useState<number | null>(null)
   const interval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   async function playTone(type: 'minute' | 'complete') {
@@ -43,13 +45,13 @@ export default function MeditationScreen() {
         setSecondsLeft(s => {
           const next = s - 1
           if (next > 0 && next % 60 === 0) {
-            playTone('minute')
+            if (soundEnabled) playTone('minute')
           }
           if (next <= 0) {
             clearInterval(interval.current!)
             setIsComplete(true)
             setIsRunning(false)
-            playTone('complete')
+            if (soundEnabled) playTone('complete')
             const today = new Date()
             const dateKey = today.getFullYear() + '-' + (today.getMonth() + 1) + '-' + today.getDate()
             AsyncStorage.setItem('unlockd_completed_today_' + dateKey, JSON.stringify(['meditation']))
@@ -66,6 +68,23 @@ export default function MeditationScreen() {
     }
   }, [isRunning])
 
+  function handleStart() {
+    setCountdown(3)
+  }
+
+  useEffect(() => {
+    if (countdown === null) return
+    if (countdown === 0) {
+      setCountdown(null)
+      setIsRunning(true)
+      return
+    }
+    const timer = setTimeout(() => {
+      setCountdown(c => c !== null ? c - 1 : null)
+    }, 1000)
+    return () => clearTimeout(timer)
+  }, [countdown])
+
   function formatTime(seconds: number): string {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
@@ -76,6 +95,25 @@ export default function MeditationScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f4f0' }}>
+      {countdown !== null && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: '#f5f4f0',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10,
+        }}>
+          <Text style={{ fontSize: 11, color: '#999', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 32 }}>
+            GET READY
+          </Text>
+          <Text style={{ fontSize: 96, fontWeight: '800', color: '#111', letterSpacing: -4, lineHeight: 100 }}>
+            {countdown === 0 ? 'GO' : countdown}
+          </Text>
+          <Text style={{ fontSize: 15, color: '#999', marginTop: 32, textAlign: 'center', lineHeight: 24 }}>
+            {countdown === 3 ? 'Find a comfortable position.' : countdown === 2 ? 'Close your eyes.' : 'Focus on your breath.'}
+          </Text>
+        </View>
+      )}
       <View style={{ flex: 1, paddingHorizontal: 28 }}>
 
         {/* Back */}
@@ -133,16 +171,55 @@ export default function MeditationScreen() {
         </View>
 
         {/* Instruction */}
-        <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', lineHeight: 20, marginBottom: 48 }}>
-          {isComplete ? 'Well done. Your mind is ready.' : 'Sit comfortably, close your eyes,\nand focus on your breath.'}
-        </Text>
+        {!isComplete && (
+          <>
+            <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', lineHeight: 20, marginBottom: 24 }}>
+              {isRunning
+                ? 'Sit comfortably, close your eyes,\nand focus on your breath.'
+                : secondsLeft === TOTAL_SECONDS
+                ? 'A gentle sound will play at each minute\nand when the timer ends.'
+                : 'Paused. Tap Resume to continue.'}
+            </Text>
+
+            {/* Sound toggle */}
+            <TouchableOpacity
+              onPress={() => setSoundEnabled(s => !s)}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                alignSelf: 'center',
+                gap: 8,
+                backgroundColor: '#fff',
+                borderWidth: 0.5,
+                borderColor: '#e0dfd8',
+                borderRadius: 50,
+                paddingHorizontal: 16,
+                paddingVertical: 8,
+              }}
+            >
+              <View style={{
+                width: 8, height: 8, borderRadius: 4,
+                backgroundColor: soundEnabled ? '#c8f135' : '#ddd',
+              }} />
+              <Text style={{ fontSize: 12, color: '#999' }}>
+                {soundEnabled ? 'Sounds on' : 'Sounds off'}
+              </Text>
+            </TouchableOpacity>
+          </>
+        )}
+
+        {isComplete && (
+          <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', lineHeight: 20 }}>
+            Well done. Your mind is ready.
+          </Text>
+        )}
 
         <View style={{ flex: 1 }} />
 
         {/* Button */}
         {!isComplete ? (
           <TouchableOpacity
-            onPress={() => setIsRunning(!isRunning)}
+            onPress={() => isRunning ? setIsRunning(false) : secondsLeft === TOTAL_SECONDS ? handleStart() : setIsRunning(true)}
             style={{ backgroundColor: '#111', borderRadius: 50, paddingVertical: 16, alignItems: 'center', marginBottom: 32 }}
           >
             <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
