@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Svg, Circle } from 'react-native-svg'
-import AppleHealthKit from 'react-native-health'
+import AppleHealthKit, { HealthKitPermissions } from 'react-native-health'
 
 const STEP_GOAL = 2000
 const CIRCLE_SIZE = 220
@@ -33,11 +33,13 @@ export default function StepsScreen() {
       const permissions = {
         permissions: {
           read: [AppleHealthKit.Constants.Permissions.StepCount],
-          write: [],
+          write: [] as string[],
         },
-      }
+      } as HealthKitPermissions
 
+      console.log('Initialising HealthKit...')
       AppleHealthKit.initHealthKit(permissions, (error: string) => {
+        console.log('HealthKit callback received, error:', error)
         if (error) {
           console.log('HealthKit init error:', error)
           setHealthStatus('denied')
