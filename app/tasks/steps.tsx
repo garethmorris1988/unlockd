@@ -70,6 +70,10 @@ export default function StepsScreen() {
       setHealthStatus('denied')
       setSteps(0)
     }
+    const timeout = setTimeout(() => {
+      setHealthStatus(prev => prev === 'loading' ? 'denied' : prev)
+    }, 5000)
+    return () => clearTimeout(timeout)
   }, [])
 
   return (
@@ -134,11 +138,29 @@ export default function StepsScreen() {
         </View>
 
         {/* Info card */}
-        <View style={{ backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#e0dfd8', borderRadius: 14, padding: 16, marginBottom: 48 }}>
-          <Text style={{ fontSize: 11, color: '#aaa', lineHeight: 18, textAlign: 'center' }}>
-            HealthKit integration available on native build.{'\n'}Steps shown are a preview.
-          </Text>
-        </View>
+        {healthStatus === 'denied' && (
+          <View style={{ backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#e0dfd8', borderRadius: 14, padding: 16, marginBottom: 48 }}>
+            <Text style={{ fontSize: 11, color: '#aaa', lineHeight: 18, textAlign: 'center' }}>
+              Please enable Health access in{'\n'}Settings → Privacy & Security → Health → Unlockd
+            </Text>
+          </View>
+        )}
+
+        {healthStatus === 'loading' && (
+          <View style={{ backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#e0dfd8', borderRadius: 14, padding: 16, marginBottom: 48 }}>
+            <Text style={{ fontSize: 11, color: '#aaa', lineHeight: 18, textAlign: 'center' }}>
+              Loading step data...
+            </Text>
+          </View>
+        )}
+
+        {healthStatus === 'granted' && (
+          <View style={{ backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#e0dfd8', borderRadius: 14, padding: 16, marginBottom: 48 }}>
+            <Text style={{ fontSize: 11, color: '#aaa', lineHeight: 18, textAlign: 'center' }}>
+              Synced from Apple Health
+            </Text>
+          </View>
+        )}
 
         <View style={{ flex: 1 }} />
 
