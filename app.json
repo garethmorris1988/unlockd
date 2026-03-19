@@ -49,6 +49,9 @@
       "eas": {
         "projectId": "80aa7505-c22a-4344-9671-355a61fd4354"
       }
+    },
+    "android": {
+      "package": "com.unlockd.gjmorris"
     }
   }
 }
