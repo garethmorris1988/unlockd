@@ -4,6 +4,7 @@ import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Svg, Circle } from 'react-native-svg'
 import AppleHealthKit, { HealthKitPermissions } from 'react-native-health'
+import { useFirstName } from '../../utils/useFirstName'
 
 const STEP_GOAL = 2000
 const CIRCLE_SIZE = 220
@@ -12,6 +13,7 @@ const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 export default function StepsScreen() {
+  const firstName = useFirstName()
   const [steps, setSteps] = useState(0)
   const [healthStatus, setHealthStatus] = useState<'loading' | 'granted' | 'denied'>('loading')
 
@@ -175,7 +177,9 @@ export default function StepsScreen() {
           style={{ backgroundColor: '#111', borderRadius: 50, paddingVertical: 16, alignItems: 'center', marginBottom: 32 }}
         >
           <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>
-            {steps >= STEP_GOAL ? 'Mark Complete' : 'Get Moving →'}
+            {steps >= STEP_GOAL
+              ? firstName ? `${firstName}, you hit your goal! ✓` : 'Mark Complete'
+              : 'Get Moving →'}
           </Text>
         </TouchableOpacity>
 

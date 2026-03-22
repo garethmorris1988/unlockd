@@ -2,8 +2,10 @@ import React, { useState } from 'react'
 import { View, Text, TouchableOpacity, SafeAreaView, TextInput, KeyboardAvoidingView, Platform, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFirstName } from '../../utils/useFirstName'
 
 export default function GratitudeScreen() {
+  const firstName = useFirstName()
   const [entry1, setEntry1] = useState('')
   const [entry2, setEntry2] = useState('')
   const [entry3, setEntry3] = useState('')
@@ -131,7 +133,9 @@ export default function GratitudeScreen() {
               onPress={() => router.back()}
               style={{ backgroundColor: '#c8f135', borderRadius: 50, paddingVertical: 16, alignItems: 'center' }}
             >
-              <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>Done ✓</Text>
+              <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>
+                {firstName ? `${firstName}, that's a great mindset. ✓` : 'Done ✓'}
+              </Text>
             </TouchableOpacity>
           )}
 

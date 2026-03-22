@@ -6,7 +6,17 @@
       "Bash(cd ~/unlockd3 && eas build --platform ios --profile preview 2>&1)",
       "Bash(find /Users/garethmorris/unlockd3/ios/Pods -name \"*HealthKit*\" -o -name \"*AppleHealth*\" 2>/dev/null | head -20)",
       "Bash(ls ~/unlockd3/modules 2>/dev/null || echo \"no modules dir\"\nls ~/unlockd3/ios/Unlockd/*.swift 2>/dev/null)",
-      "Bash(cd ~/unlockd3 && node scripts/addRepCounterFiles.js)"
+      "Bash(cd ~/unlockd3 && node scripts/addRepCounterFiles.js)",
+      "WebSearch",
+      "Bash(find /Users/garethmorris/unlockd3/ios/Unlockd -name *.swift -o -name *.m -o -name *.h)",
+      "Bash(xargs ls:*)",
+      "Bash(grep -r \"personaliz\\\\|adaptive\\\\|learn\\\\|calibrat\\\\|TODO\\\\|FIXME\\\\|stub\\\\|placeholder\" /Users/garethmorris/unlockd3/ios/Unlockd/*.swift)",
+      "Bash(git -C /Users/garethmorris/unlockd3 ls-files ios/)",
+      "Bash(git -C /Users/garethmorris/unlockd3 show 92436ee --name-only)",
+      "Bash(grep -v \"^$\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(git -C /Users/garethmorris/unlockd3 status --short ios/)",
+      "Bash(git add:*)"
     ]
   }
 }

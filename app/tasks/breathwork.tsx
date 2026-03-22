@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react'
 import { View, Text, TouchableOpacity, SafeAreaView, Animated } from 'react-native'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFirstName } from '../../utils/useFirstName'
 
 const PHASES = [
   { label: 'INHALE', duration: 4 },
@@ -11,6 +12,7 @@ const PHASES = [
 const TOTAL_ROUNDS = 4
 
 export default function BreathworkScreen() {
+  const firstName = useFirstName()
   const [phase, setPhase]           = useState(0)
   const [secondsLeft, setSecondsLeft] = useState(PHASES[0].duration)
   const [round, setRound]           = useState(1)
@@ -143,7 +145,9 @@ export default function BreathworkScreen() {
         {/* Instruction */}
         <Text style={{ fontSize: 13, color: '#999', textAlign: 'center', lineHeight: 20 }}>
           {isComplete
-            ? 'Your nervous system is reset.\nYou are ready.'
+            ? firstName
+              ? `That's it, ${firstName}. You're centred.`
+              : 'Your nervous system is reset.\nYou are ready.'
             : phase === 0 ? 'Breathe in slowly through your nose.'
             : phase === 1 ? 'Hold your breath gently.'
             : 'Exhale completely through your mouth.'}
@@ -166,7 +170,9 @@ export default function BreathworkScreen() {
             onPress={() => router.back()}
             style={{ backgroundColor: '#c8f135', borderRadius: 50, paddingVertical: 16, alignItems: 'center', marginBottom: 32 }}
           >
-            <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>Done ✓</Text>
+            <Text style={{ color: '#111', fontSize: 15, fontWeight: '700' }}>
+            {firstName ? `Done, ${firstName} ✓` : 'Done ✓'}
+          </Text>
           </TouchableOpacity>
         )}
 

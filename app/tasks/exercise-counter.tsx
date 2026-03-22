@@ -24,25 +24,29 @@ const EXERCISE_CONFIG: Record<string, {
 }> = {
   pushups: {
     orientation: 'landscape',
-    instructions: 'Place your phone on the floor to your side, in landscape. Get into position side-on to the camera.',
-    setupHint: 'Phone flat · landscape · person side-on',
+    instructions: 'Place phone at elbow height, 2–3 metres to your side, in landscape. Your full body — wrist to ankle — must stay in frame throughout.\n\nWear fitted clothing and use a plain wall or floor as background if possible.',
+    setupHint: 'Side-on · landscape · elbow height · 2–3 m away',
   },
   squats: {
     orientation: 'portrait',
-    instructions: 'Stand your phone upright to your side, in portrait. Stand side-on to the camera with your full body visible.',
-    setupHint: 'Phone upright · portrait · person side-on',
+    instructions: 'Stand your phone upright, 2–3 metres to your side, in portrait. Stand side-on to the camera with your full body — head to feet — visible.\n\nA plain background behind you improves accuracy.',
+    setupHint: 'Side-on · portrait · hip height · 2–3 m away',
   },
   situps: {
     orientation: 'landscape',
-    instructions: 'Place your phone to your side on the floor, in landscape. Lie down side-on to the camera so your full body is visible.',
-    setupHint: 'Phone flat · landscape · person side-on',
+    instructions: 'Place phone at floor level, 1.5–2 metres to your side, in landscape. Lie down side-on — your feet, hips, and shoulders must all be in frame when you\'re flat.\n\nA contrasting background and plain floor mat help the camera find your body.',
+    setupHint: 'Side-on · landscape · floor level · 1.5–2 m away',
   },
 }
 
 const CAMERA_SUPPORTED     = RepCounter.isAvailable()
 const PERSON_LOST_MS       = 800
 const AI_SHOWN_KEY         = (id: string) => `unlockd_ai_shown_${id}`
+const CALIBRATION_KEY      = (id: string) => `unlockd_calibration_${id}`
 const ORIENT_SHOWN_SESSION = new Set<string>()   // persists for the lifetime of the app session
+
+// Exercises that benefit from per-user calibration
+const CALIBRATES = new Set(['pushups', 'situps'])
 
 // ─── Small UI helpers ─────────────────────────────────────────────────────────
 
@@ -83,15 +87,21 @@ export default function ExerciseCounterScreen() {
   const [personDetected, setPersonDetected]     = useState(false)
   const [debugRise, setDebugRise]               = useState<number | null>(null)
   const [debugPhase, setDebugPhase]             = useState<string | null>(null)
+  const [milestoneMsg, setMilestoneMsg]         = useState<string | null>(null)
+
+  // Calibration
+  const [calibrating, setCalibrating]           = useState(false)
+  const [calibProgress, setCalibProgress]       = useState(0)
 
   // overlay: 'none' | 'instructions' | 'rotate'
   const [overlay, setOverlay]                   = useState<'none' | 'instructions' | 'rotate'>('none')
   const [deviceIsLandscape, setDeviceLandscape] = useState(false)
 
-  const cameraViewRef   = useRef<any>(null)
-  const flashAnim       = useRef(new Animated.Value(1)).current
-  const detectPulse     = useRef(new Animated.Value(1)).current
-  const personLostTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const cameraViewRef    = useRef<any>(null)
+  const flashAnim        = useRef(new Animated.Value(1)).current
+  const detectPulse      = useRef(new Animated.Value(1)).current
+  const personLostTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const milestoneTimer   = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Accelerometer: detect device orientation while overlay is showing ────────
 
@@ -144,17 +154,35 @@ export default function ExerciseCounterScreen() {
 
   // ── Camera control ───────────────────────────────────────────────────────────
 
-  function startCameraDirectly() {
+  async function startCameraDirectly() {
     RepCounter.setExercise(selectedExercise.id)
-    RepCounter.resetCount()
     setCameraError(null)
     setCount(0)
+    setCalibrating(false)
+    setCalibProgress(0)
+
+    // Load stored calibration thresholds if available; otherwise start a calibration pass
+    if (CALIBRATES.has(selectedExercise.id)) {
+      const stored = await AsyncStorage.getItem(CALIBRATION_KEY(selectedExercise.id))
+      if (stored) {
+        const cal = JSON.parse(stored)
+        RepCounter.loadCalibration(cal.enterUp, cal.exitUp)
+        RepCounter.resetCount()
+      } else {
+        setCalibrating(true)
+        RepCounter.startCalibration()
+      }
+    } else {
+      RepCounter.resetCount()
+    }
+
     setCameraActive(true)
   }
 
   function stopCameraDirectly() {
     RepCounter.stopCamera()
     setCameraActive(false)
+    setCalibrating(false)
     clearPersonTimer()
     setPersonDetected(false)
   }
@@ -163,16 +191,14 @@ export default function ExerciseCounterScreen() {
   async function handleAIButtonPress() {
     if (cameraActive) { stopCameraDirectly(); return }
 
-    const exId    = selectedExercise.id
-    const shown   = await AsyncStorage.getItem(AI_SHOWN_KEY(exId))
+    const exId  = selectedExercise.id
+    const shown = await AsyncStorage.getItem(AI_SHOWN_KEY(exId))
 
     if (!shown) {
-      // First ever use — show full instructions
       setOverlay('instructions')
       return
     }
 
-    // Subsequent use — show rotation reminder once per session per exercise
     if (!ORIENT_SHOWN_SESSION.has(exId)) {
       setOverlay('rotate')
       return
@@ -181,13 +207,11 @@ export default function ExerciseCounterScreen() {
     startCameraDirectly()
   }
 
-  // Auto-start camera/AI mode when screen opens — go through handleAIButtonPress()
-  // so the orientation overlay is shown for landscape exercises (once per session).
+  // Auto-start camera/AI mode when screen opens
   useEffect(() => {
     if (CAMERA_SUPPORTED) { handleAIButtonPress() }
   }, [])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  // "Got it" on instructions overlay
   async function handleInstructionsDone() {
     await AsyncStorage.setItem(AI_SHOWN_KEY(selectedExercise.id), '1')
     ORIENT_SHOWN_SESSION.add(selectedExercise.id)
@@ -195,7 +219,6 @@ export default function ExerciseCounterScreen() {
     startCameraDirectly()
   }
 
-  // "Got it" / "Start anyway" on rotate overlay
   function handleRotateDone() {
     ORIENT_SHOWN_SESSION.add(selectedExercise.id)
     setOverlay('none')
@@ -215,7 +238,16 @@ export default function ExerciseCounterScreen() {
 
     const repSub = RepCounter.onRepCounted(({ count: c, flash }) => {
       setCount(c)
-      if (flash) triggerFlash()
+      if (flash) {
+        triggerFlash()
+        // Milestone messages at 5, 10, 15 reps
+        const milestones = [5, 10, 15]
+        if (firstName && milestones.includes(c)) {
+          if (milestoneTimer.current) clearTimeout(milestoneTimer.current)
+          setMilestoneMsg(`${c} reps, ${firstName}!`)
+          milestoneTimer.current = setTimeout(() => setMilestoneMsg(null), 2000)
+        }
+      }
       if (c >= selectedExercise.target) {
         setSessionCompleted(prev => {
           if (prev.includes(selectedExercise.id)) return prev
@@ -234,15 +266,55 @@ export default function ExerciseCounterScreen() {
       personLostTimer.current = setTimeout(() => setPersonDetected(false), PERSON_LOST_MS)
     })
 
+    const personLostSub = RepCounter.onPersonLost(() => {
+      setPersonDetected(false)
+      clearPersonTimer()
+    })
+
+    const calibProgressSub = RepCounter.onCalibrationProgress(({ repsObserved }) => {
+      setCalibProgress(repsObserved)
+      setPersonDetected(true)
+      clearPersonTimer()
+      personLostTimer.current = setTimeout(() => setPersonDetected(false), PERSON_LOST_MS)
+    })
+
+    const calibCompleteSub = RepCounter.onCalibrationComplete(async (data) => {
+      // Persist for future sessions
+      await AsyncStorage.setItem(CALIBRATION_KEY(selectedExercise.id), JSON.stringify({
+        enterUp:  data.enterUp,
+        exitUp:   data.exitUp,
+        rangeMin: data.rangeMin,
+        rangeMax: data.rangeMax,
+      }))
+      setCalibrating(false)
+      setCalibProgress(0)
+      // Now start counting from scratch
+      RepCounter.resetCount()
+      setCount(0)
+    })
+
     const errorSub = RepCounter.onCameraError(({ message }) => {
       setCameraError(message)
       setCameraActive(false)
     })
 
-    return () => { repSub?.remove(); angleSub?.remove(); errorSub?.remove() }
-  }, [cameraActive, selectedExercise, triggerFlash, clearPersonTimer])  // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {
+      repSub?.remove()
+      angleSub?.remove()
+      personLostSub?.remove()
+      calibProgressSub?.remove()
+      calibCompleteSub?.remove()
+      errorSub?.remove()
+    }
+  }, [cameraActive, selectedExercise, triggerFlash, clearPersonTimer, firstName])  // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => { return () => { RepCounter.stopCamera(); clearPersonTimer() } }, [clearPersonTimer])
+  useEffect(() => {
+    return () => {
+      RepCounter.stopCamera()
+      clearPersonTimer()
+      if (milestoneTimer.current) clearTimeout(milestoneTimer.current)
+    }
+  }, [clearPersonTimer])
 
   // ── Completion logic ─────────────────────────────────────────────────────────
 
@@ -264,7 +336,7 @@ export default function ExerciseCounterScreen() {
       const next = EXERCISES.find(e => !newCompleted.includes(e.id))
       if (next) {
         setTimeout(() => {
-          ORIENT_SHOWN_SESSION.delete(next.id)   // re-show rotate reminder for the new exercise
+          ORIENT_SHOWN_SESSION.delete(next.id)
           setSelectedExercise(next)
           setCount(0)
           setCameraError(null)
@@ -311,6 +383,13 @@ export default function ExerciseCounterScreen() {
   const isCurrentExDone   = sessionCompleted.includes(selectedExercise.id)
   const exCfg             = EXERCISE_CONFIG[selectedExercise.id]
 
+  // Subtitle shown below the "Exercise" heading
+  const headerSubtitle = (() => {
+    if (!cameraActive) return 'Complete your reps to unlock this habit.'
+    if (calibrating) return `Calibrating — do ${3 - calibProgress} more rep${3 - calibProgress !== 1 ? 's' : ''} at your natural pace.`
+    return 'Camera is counting your reps.'
+  })()
+
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
@@ -338,7 +417,7 @@ export default function ExerciseCounterScreen() {
           Exercise
         </Text>
         <Text style={{ fontSize: 13, color: textSecondary, marginBottom: 8 }}>
-          {cameraActive ? 'Camera is counting your reps.' : 'Complete your reps to unlock this habit.'}
+          {headerSubtitle}
         </Text>
 
         {/* Goal progress */}
@@ -388,16 +467,37 @@ export default function ExerciseCounterScreen() {
         <View style={{ alignItems: 'center', marginBottom: 16 }}>
           {cameraActive ? (
             <View style={{ alignItems: 'center' }}>
-              <Animated.Text style={{
-                fontSize: 120, fontWeight: '800', color: '#c8f135',
-                letterSpacing: -6, lineHeight: 120,
-                transform: [{ scale: flashAnim }],
-              }}>
-                {count}
-              </Animated.Text>
-              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, textTransform: 'uppercase', marginTop: 4 }}>
-                OF {selectedExercise.target} REPS
-              </Text>
+              {calibrating ? (
+                // Calibration mode — show progress instead of count
+                <View style={{ alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 72, fontWeight: '800', color: 'rgba(255,255,255,0.3)', letterSpacing: -4, lineHeight: 80 }}>
+                    {calibProgress}/3
+                  </Text>
+                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, textTransform: 'uppercase', marginTop: 4 }}>
+                    CALIBRATION REPS
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  <Animated.Text style={{
+                    fontSize: 120, fontWeight: '800', color: '#c8f135',
+                    letterSpacing: -6, lineHeight: 120,
+                    transform: [{ scale: flashAnim }],
+                  }}>
+                    {count}
+                  </Animated.Text>
+                  <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 2, textTransform: 'uppercase', marginTop: 4 }}>
+                    OF {selectedExercise.target} REPS
+                  </Text>
+                </>
+              )}
+
+              {/* Milestone message */}
+              {milestoneMsg && (
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#c8f135', marginTop: 8, letterSpacing: 0.2 }}>
+                  {milestoneMsg}
+                </Text>
+              )}
 
               {/* Person detection badge */}
               <View style={{
@@ -479,7 +579,7 @@ export default function ExerciseCounterScreen() {
           </Text>
         )}
 
-        {/* AI toggle — available for all exercises */}
+        {/* AI toggle */}
         {CAMERA_SUPPORTED && !sessionDone && !isCurrentExDone && (
           <TouchableOpacity
             onPress={handleAIButtonPress}
@@ -603,7 +703,6 @@ export default function ExerciseCounterScreen() {
           paddingHorizontal: 40,
         }}>
 
-          {/* Phone diagram — target orientation */}
           <PhoneDiagram orientation={exCfg.orientation} />
 
           <View style={{ height: 36 }} />
