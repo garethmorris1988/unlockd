@@ -5,6 +5,9 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { useState, useEffect } from 'react';
@@ -24,7 +27,7 @@ const ALL_HABITS: { id: HabitId; name: string; benefit: string }[] = [
   { id: 'breathwork', name: 'Breathwork', benefit: 'Activates your parasympathetic nervous system.' },
   { id: 'gratitude',  name: 'Gratitude',  benefit: 'Primes your brain to notice positives all day.' },
   { id: 'steps',      name: 'Steps',      benefit: 'Boosts dopamine and wakes up your body naturally.' },
-  { id: 'exercise',   name: 'Push Ups',   benefit: 'Raises energy and focus for hours after.' },
+  { id: 'exercise',   name: 'Exercise',   benefit: 'Raises energy and focus for hours after.' },
 ];
 
 const GOAL_OPTIONS: { id: GoalId; label: string }[] = [
@@ -93,14 +96,18 @@ const GOAL_INSIGHTS: Record<GoalId, { title: string; cards: { title: string; bod
   },
 };
 
-const FIRST_PROGRESS_STEP = 2;
-const LAST_PROGRESS_STEP  = 6;
+const FIRST_PROGRESS_STEP = 3;
+const LAST_PROGRESS_STEP  = 7;
 const PROGRESS_BAR_COUNT  = LAST_PROGRESS_STEP - FIRST_PROGRESS_STEP + 1; // 5
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function OnboardingScreen() {
   const [step, setStep]         = useState(1);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName]   = useState('');
+  const [email, setEmail]         = useState('');
+  const [nameError, setNameError] = useState('');
   const [goal, setGoal]         = useState<GoalId | null>(null);
   const [struggle, setStruggle] = useState<string | null>(null);
   const [habits, setHabits]     = useState<HabitId[]>([]);
@@ -110,6 +117,15 @@ export default function OnboardingScreen() {
   const [packages, setPackages] = useState<PurchasesPackage[]>([])
   const [isPurchasing, setIsPurchasing] = useState(false)
   const [purchaseError, setPurchaseError] = useState('')
+
+  function handleNameContinue() {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!firstName.trim()) { setNameError('Please enter your first name.'); return }
+    if (!lastName.trim())  { setNameError('Please enter your last name.'); return }
+    if (!emailRegex.test(email.trim())) { setNameError('Please enter a valid email address.'); return }
+    setNameError('')
+    setStep(3)
+  }
 
   function selectGoal(id: GoalId) {
     setGoal(id);
@@ -138,6 +154,9 @@ export default function OnboardingScreen() {
       AsyncStorage.setItem('unlockd_active_habits', JSON.stringify(habits.length ? habits : GOAL_HABITS.all)),
       AsyncStorage.setItem('unlockd_lock_time', JSON.stringify({ hour: lockHour, min: lockMin })),
       AsyncStorage.setItem('unlockd_onboarding_done', 'true'),
+      AsyncStorage.setItem('unlockd_first_name', firstName.trim()),
+      AsyncStorage.setItem('unlockd_last_name', lastName.trim()),
+      AsyncStorage.setItem('unlockd_email', email.trim().toLowerCase()),
     ]);
     router.replace('/motivation');
   }
@@ -259,8 +278,52 @@ export default function OnboardingScreen() {
         showsVerticalScrollIndicator={false}
       >
 
-        {/* ── Step 2: Goal ──────────────────────────────────────────────── */}
+        {/* ── Step 2: Name & Email ──────────────────────────────────────── */}
         {step === 2 && (
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <Text style={styles.stepTitle}>Let's get started.</Text>
+            <Text style={styles.stepSubtitle}>We'll personalise your routine.</Text>
+
+            <TextInput
+              style={styles.textInput}
+              placeholder="First name"
+              placeholderTextColor="#bbb"
+              value={firstName}
+              onChangeText={v => { setFirstName(v); setNameError('') }}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+            <TextInput
+              style={styles.textInput}
+              placeholder="Last name"
+              placeholderTextColor="#bbb"
+              value={lastName}
+              onChangeText={v => { setLastName(v); setNameError('') }}
+              autoCapitalize="words"
+              returnKeyType="next"
+            />
+            <TextInput
+              style={[styles.textInput, { marginBottom: nameError ? 8 : 24 }]}
+              placeholder="Email address"
+              placeholderTextColor="#bbb"
+              value={email}
+              onChangeText={v => { setEmail(v); setNameError('') }}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              returnKeyType="done"
+            />
+            {nameError.length > 0 && (
+              <Text style={{ fontSize: 12, color: '#ff4444', marginBottom: 16 }}>{nameError}</Text>
+            )}
+
+            <TouchableOpacity style={styles.ctaDark} onPress={handleNameContinue}>
+              <Text style={styles.ctaDarkText}>Continue →</Text>
+            </TouchableOpacity>
+          </KeyboardAvoidingView>
+        )}
+
+        {/* ── Step 3: Goal ──────────────────────────────────────────────── */}
+        {step === 3 && (
           <View>
             <Text style={styles.stepTitle}>What's your main goal?</Text>
             <Text style={styles.stepSubtitle}>We'll build your routine around this.</Text>
@@ -279,15 +342,15 @@ export default function OnboardingScreen() {
             </View>
             <TouchableOpacity
               style={[styles.ctaDark, !goal && styles.ctaDisabled]}
-              onPress={() => goal && setStep(3)}
+              onPress={() => goal && setStep(4)}
             >
               <Text style={styles.ctaDarkText}>Continue</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Step 3: Insight ───────────────────────────────────────────── */}
-        {step === 3 && goal && (
+        {/* ── Step 4: Insight ───────────────────────────────────────────── */}
+        {step === 4 && goal && (
           <View>
             <Text style={styles.insightGoalLabel}>{GOAL_OPTIONS.find(g => g.id === goal)?.label.toUpperCase()}</Text>
             <Text style={styles.stepTitle}>{insightTitle}</Text>
@@ -299,14 +362,14 @@ export default function OnboardingScreen() {
                 </View>
               ))}
             </View>
-            <TouchableOpacity style={styles.ctaDark} onPress={() => setStep(4)}>
+            <TouchableOpacity style={styles.ctaDark} onPress={() => setStep(5)}>
               <Text style={styles.ctaDarkText}>I'm in →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Step 4: Struggle ──────────────────────────────────────────── */}
-        {step === 4 && (
+        {/* ── Step 5: Struggle ──────────────────────────────────────────── */}
+        {step === 5 && (
           <View>
             <Text style={styles.stepTitle}>What's your biggest struggle?</Text>
             <Text style={styles.stepSubtitle}>Be honest — we'll work around it.</Text>
@@ -325,15 +388,15 @@ export default function OnboardingScreen() {
             </View>
             <TouchableOpacity
               style={[styles.ctaDark, !struggle && styles.ctaDisabled]}
-              onPress={() => struggle && setStep(5)}
+              onPress={() => struggle && setStep(6)}
             >
               <Text style={styles.ctaDarkText}>Continue</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Step 5: Habits ────────────────────────────────────────────── */}
-        {step === 5 && (
+        {/* ── Step 6: Habits ────────────────────────────────────────────── */}
+        {step === 6 && (
           <View>
             <Text style={[styles.stepTitle, { fontSize: 20 }]}>Your personalised routine</Text>
             <Text style={[styles.stepSubtitle, { marginBottom: 16 }]}>Toggle to customise.</Text>
@@ -360,14 +423,14 @@ export default function OnboardingScreen() {
                 );
               })}
             </View>
-            <TouchableOpacity style={[styles.ctaDark, { marginTop: 20 }]} onPress={() => setStep(6)}>
+            <TouchableOpacity style={[styles.ctaDark, { marginTop: 20 }]} onPress={() => setStep(7)}>
               <Text style={styles.ctaDarkText}>This looks good →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Step 6: Lock time ─────────────────────────────────────────── */}
-        {step === 6 && (
+        {/* ── Step 7: Lock time ─────────────────────────────────────────── */}
+        {step === 7 && (
           <View style={styles.lockStep}>
             <Text style={styles.stepTitle}>When does your day start?</Text>
             <Text style={[styles.stepSubtitle, { marginBottom: 32 }]}>
@@ -400,15 +463,15 @@ export default function OnboardingScreen() {
             <TouchableOpacity style={styles.ctaDark} onPress={async () => {
               await AsyncStorage.setItem('unlockd_lock_time', JSON.stringify({ hour: lockHour, min: lockMin }))
               await scheduleMorningReminder(lockHour, lockMin)
-              setStep(7)
+              setStep(8)
             }}>
               <Text style={styles.ctaDarkText}>Set My Lock Time →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Step 7: Paywall ───────────────────────────────────────────── */}
-        {step === 7 && (
+        {/* ── Step 8: Paywall ───────────────────────────────────────────── */}
+        {step === 8 && (
           <View>
             <Text style={[styles.stepTitle, { fontSize: 26, letterSpacing: -0.5 }]}>
               your routine is ready.
@@ -689,6 +752,19 @@ const styles = StyleSheet.create({
     color: '#bbb',
     textAlign: 'center',
     marginTop: 6,
+  },
+
+  // ── Text inputs ────────────────────────────────────────────────────────────
+  textInput: {
+    backgroundColor: '#fff',
+    borderWidth: 0.5,
+    borderColor: '#e0dfd8',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 14,
+    color: '#111',
+    marginBottom: 12,
   },
 
   // ── CTA ────────────────────────────────────────────────────────────────────

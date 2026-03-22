@@ -15,6 +15,7 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.unlockd.gjmorris",
       "infoPlist": {
+        "NSCameraUsageDescription": "Unlockd uses your camera to count push-up reps automatically using on-device AI.",
         "NSHealthShareUsageDescription": "Unlockd reads your step count to track your daily movement habit.",
         "NSHealthUpdateUsageDescription": "Unlockd reads your step count to track your daily movement habit.",
         "ITSAppUsesNonExemptEncryption": false

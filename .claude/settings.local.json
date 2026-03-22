@@ -3,7 +3,10 @@
     "allow": [
       "Bash(npx tsc:*)",
       "Bash(npx expo:*)",
-      "Bash(cd ~/unlockd3 && eas build --platform ios --profile preview 2>&1)"
+      "Bash(cd ~/unlockd3 && eas build --platform ios --profile preview 2>&1)",
+      "Bash(find /Users/garethmorris/unlockd3/ios/Pods -name \"*HealthKit*\" -o -name \"*AppleHealth*\" 2>/dev/null | head -20)",
+      "Bash(ls ~/unlockd3/modules 2>/dev/null || echo \"no modules dir\"\nls ~/unlockd3/ios/Unlockd/*.swift 2>/dev/null)",
+      "Bash(cd ~/unlockd3 && node scripts/addRepCounterFiles.js)"
     ]
   }
 }

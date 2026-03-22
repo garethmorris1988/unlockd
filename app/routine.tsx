@@ -9,6 +9,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { useFirstName } from '../utils/useFirstName';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ─── Task definitions ──────────────────────────────────────────────────────────
@@ -18,7 +19,7 @@ const ALL_TASKS = [
   { id: 'breathwork', name: 'Breathwork',  meta: '4-7-8 · 4 rounds', route: '/tasks/breathwork' },
   { id: 'gratitude',  name: 'Gratitude',   meta: '3 entries',         route: '/tasks/gratitude'  },
   { id: 'steps',      name: 'Steps',       meta: '2,000 steps',       route: '/tasks/steps'      },
-  { id: 'exercise',   name: 'Push Ups',    meta: '20 reps',           route: '/tasks/exercise'   },
+  { id: 'exercise',   name: 'Exercise',    meta: '20 reps',           route: '/tasks/exercise'   },
 ];
 
 const DEFAULT_HABITS = ALL_TASKS.map(t => t.id);
@@ -40,6 +41,7 @@ function formatDate(d: Date): string {
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export default function RoutineScreen() {
+  const firstName = useFirstName();
   const [completedTasks, setCompletedTasks] = useState<string[]>([]);
   const [activeHabits, setActiveHabits]     = useState<string[]>(DEFAULT_HABITS);
   const [streak, setStreak]                 = useState(0);
@@ -116,7 +118,7 @@ export default function RoutineScreen() {
       <View style={styles.header}>
         <Text style={styles.headerDate}>{dateStr}</Text>
         <Text style={styles.headerTime}>{time}</Text>
-        <Text style={styles.headerSub}>YOUR ROUTINE UNLOCKD</Text>
+        <Text style={styles.headerSub}>{firstName ? `${firstName.toUpperCase()}'S ROUTINE` : 'YOUR ROUTINE UNLOCKD'}</Text>
 
         {/* Streak cards */}
         <TouchableOpacity onPress={() => router.push('/streak')} activeOpacity={0.7}>

@@ -11,7 +11,7 @@ const ALL_HABITS: { id: HabitId; name: string; meta: string; benefit: string }[]
   { id: 'breathwork', name: 'Breathwork', meta: '4-7-8 · 4 rounds', benefit: 'Activates your parasympathetic nervous system within 90 seconds. The fastest tool to shift your mental state.' },
   { id: 'gratitude',  name: 'Gratitude',  meta: '3 entries',         benefit: 'Primes your brain to notice positives all day. Measurably reduces anxiety within two weeks.' },
   { id: 'steps',      name: 'Steps',      meta: '2,000 steps',       benefit: 'Boosts dopamine and wakes up your body naturally. Morning movement elevates energy and focus for hours.' },
-  { id: 'exercise',   name: 'Push Ups',   meta: '20 reps',           benefit: 'Raises energy and focus for hours after. Releases BDNF, the protein that sharpens memory and learning.' },
+  { id: 'exercise',   name: 'Exercise',   meta: '20 reps',           benefit: 'Raises energy and focus for hours after. Releases BDNF, the protein that sharpens memory and learning.' },
 ]
 
 const STORAGE_KEY = 'unlockd_active_habits'

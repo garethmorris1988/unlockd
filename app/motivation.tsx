@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { View, Text, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native'
-import { router } from 'expo-router'
+import { router, useFocusEffect } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFirstName } from '../utils/useFirstName'
 
 const STORAGE_PREFIX = 'unlockd_completed_today_'
 
@@ -32,49 +33,71 @@ export default function MotivationScreen() {
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
   const dateString = days[today.getDay()] + ' · ' + today.getDate() + ' ' + months[today.getMonth()]
 
+  const firstName = useFirstName()
   const [streak, setStreak] = useState(0)
 
-  useEffect(() => {
-    ;(async () => {
-      const allKeys = await AsyncStorage.getAllKeys()
-      const completionKeys = (allKeys as string[]).filter(k => k.startsWith(STORAGE_PREFIX))
-      const pairs = await AsyncStorage.multiGet(completionKeys)
+  // Re-read streak every time this screen comes into focus (e.g. after completing routine)
+  useFocusEffect(
+    useCallback(() => {
+      ;(async () => {
+        const allKeys = await AsyncStorage.getAllKeys()
+        const completionKeys = (allKeys as string[]).filter(k => k.startsWith(STORAGE_PREFIX))
+        const pairs = await AsyncStorage.multiGet(completionKeys)
 
-      const completedSet = new Set<string>()
-      for (const [key] of pairs) {
-        completedSet.add(key.slice(STORAGE_PREFIX.length))
-      }
+        const completedSet = new Set<string>()
+        for (const [key] of pairs) {
+          completedSet.add(key.slice(STORAGE_PREFIX.length))
+        }
 
-      function dateToKey(d: Date): string {
-        return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`
-      }
-      function daysAgo(n: number): Date {
-        const d = new Date()
-        d.setHours(0, 0, 0, 0)
-        d.setDate(d.getDate() - n)
-        return d
-      }
+        // Use getMonth()+1 to match the 1-indexed keys written by routine.tsx
+        function dateToKey(d: Date): string {
+          return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`
+        }
+        function daysAgo(n: number): Date {
+          const d = new Date()
+          d.setHours(0, 0, 0, 0)
+          d.setDate(d.getDate() - n)
+          return d
+        }
 
-      const todayDone = completedSet.has(dateToKey(daysAgo(0)))
-      let count = 0
-      let i = todayDone ? 0 : 1
-      while (i <= 365) {
-        if (!completedSet.has(dateToKey(daysAgo(i)))) break
-        count++
-        i++
-      }
-      setStreak(count)
-    })()
-  }, [])
+        const todayDone = completedSet.has(dateToKey(daysAgo(0)))
+        let count = 0
+        let i = todayDone ? 0 : 1
+        while (i <= 365) {
+          if (!completedSet.has(dateToKey(daysAgo(i)))) break
+          count++
+          i++
+        }
+        setStreak(count)
+      })()
+    }, [])
+  )
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f5f4f0' }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, paddingHorizontal: 28, paddingTop: 60, paddingBottom: 40 }}>
 
-        {/* Date */}
-        <Text style={{ color: '#999', fontSize: 11, fontWeight: '400', letterSpacing: 3, textTransform: 'uppercase', marginBottom: 24 }}>
-          {dateString}
-        </Text>
+        {/* Date row + subtle reset link */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+          <Text style={{ color: '#999', fontSize: 11, fontWeight: '400', letterSpacing: 3, textTransform: 'uppercase' }}>
+            {dateString}
+          </Text>
+          <TouchableOpacity
+            onPress={async () => {
+              await AsyncStorage.multiRemove(['unlockd_onboarding_done', 'unlockd_active_habits', 'unlockd_lock_time', 'unlockd_first_name', 'unlockd_last_name', 'unlockd_email'])
+              router.replace('/onboarding')
+            }}
+          >
+            <Text style={{ color: '#ccc', fontSize: 11 }}>↺ Reset</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Personalised greeting */}
+        {firstName.length > 0 && (
+          <Text style={{ fontSize: 28, fontWeight: '800', color: '#111', letterSpacing: -0.5, marginBottom: 20 }}>
+            Morning, {firstName}.
+          </Text>
+        )}
 
         {/* Streak pill */}
         <View style={{ alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderWidth: 0.5, borderColor: '#e0dfd8', borderRadius: 50, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 40 }}>
