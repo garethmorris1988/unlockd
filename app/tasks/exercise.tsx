@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { View, Text, TouchableOpacity, SafeAreaView } from 'react-native'
 import { router } from 'expo-router'
+import { useFirstName } from '../../utils/useFirstName'
 
 const EXERCISES = [
   { id: 'pushups', label: 'Push Ups' },
@@ -15,6 +16,7 @@ const GOALS = [
 ]
 
 export default function ExerciseSelectScreen() {
+  const firstName = useFirstName()
   const [selectedExercise, setSelectedExercise] = useState('pushups')
   const [goal, setGoal] = useState(1)
 
@@ -44,7 +46,7 @@ export default function ExerciseSelectScreen() {
           Exercise
         </Text>
         <Text style={{ fontSize: 13, color: '#999', marginBottom: 40 }}>
-          Set up your morning exercise.
+          {firstName ? `Choose your exercises, ${firstName}.` : 'Set up your morning exercise.'}
         </Text>
 
         {/* Exercise selector */}

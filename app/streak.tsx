@@ -2,10 +2,13 @@ import React, { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native'
 import { router } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { useFirstName } from '../utils/useFirstName'
 
 const STORAGE_PREFIX = 'unlockd_completed_today_'
+const STREAK_MILESTONES = [3, 7, 14, 30, 60, 100]
 
 export default function StreakScreen() {
+  const firstName = useFirstName()
   const [currentStreak, setCurrentStreak] = useState(0)
   const [bestStreak, setBestStreak] = useState(0)
   const [completedDates, setCompletedDates] = useState<string[]>([])
@@ -67,8 +70,18 @@ export default function StreakScreen() {
         </TouchableOpacity>
 
         {/* Title */}
-        <Text style={{ fontSize: 28, fontWeight: '800', color: '#111', letterSpacing: -0.5, marginTop: 8, marginBottom: 4 }}>Your Streak</Text>
-        <Text style={{ fontSize: 13, color: '#999', marginBottom: 24 }}>Don't break the chain.</Text>
+        <Text style={{ fontSize: 28, fontWeight: '800', color: '#111', letterSpacing: -0.5, marginTop: 8, marginBottom: 4 }}>
+          {firstName ? `${firstName}'s Streak` : 'Your Streak'}
+        </Text>
+        <Text style={{ fontSize: 13, color: '#999', marginBottom: 24 }}>
+          {(() => {
+            if (currentStreak === 0) return "Start your streak today."
+            const next = STREAK_MILESTONES.find(m => m > currentStreak)
+            if (next && firstName) return `${next - currentStreak} away from your ${next}-day streak, ${firstName}.`
+            if (next) return `${next - currentStreak} days to your ${next}-day streak.`
+            return "Don't break the chain."
+          })()}
+        </Text>
 
         {/* Stat cards */}
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>

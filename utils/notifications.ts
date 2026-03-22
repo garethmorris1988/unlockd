@@ -37,9 +37,13 @@ export async function scheduleMorningReminder(hour: number, min: number): Promis
     if (reminderHour < 0) reminderHour = 23
   }
 
+  const firstName = await AsyncStorage.getItem('unlockd_first_name')
+
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Time to unlock your morning.',
+      title: firstName
+        ? `Morning, ${firstName}. Time to unlock.`
+        : 'Time to unlock your morning.',
       body: 'Your routine is waiting. Complete it before your phone locks.',
       sound: true,
     },
